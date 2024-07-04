@@ -7,9 +7,11 @@ class InventoryRepository(
     private val airportDao: AirportDao,
     private val favoriteDao: FavoriteDao
 ) {
-    fun searchAirportWithSearchInput(searchInput: String): Flow<List<AirportInfo>> =
-        airportDao.searchAirportWithSearchInput(searchInput)
+    fun searchAirportWithSearchInput(searchInput: String): Flow<List<AirportInfo>> {
+        return airportDao.searchAirportWithSearchInput(searchInput)
+    }
 
-    fun listDestinationAirportWithDepartureCode(iataCode: String): Flow<List<AirportInfo>> =
-        favoriteDao.listDestinationAirportWithDepartureCode(iataCode)
+    fun listDestinationAirportWithDepartureCode(iataCode: String): Flow<List<AirportInfo>> {
+        return favoriteDao.listDestinationAirportWithDepartureCode(iataCode)
+    }
 }
