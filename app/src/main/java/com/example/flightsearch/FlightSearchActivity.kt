@@ -9,9 +9,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,6 +24,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,15 +36,19 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flightsearch.model.AirportInfo
-import com.example.flightsearch.ui.SearchAirportViewModel
+import com.example.flightsearch.model.AirportInfoPair
+import com.example.flightsearch.ui.FlightSearchViewModel
 import com.example.flightsearch.ui.theme.FlightSearchTheme
 import java.util.Locale
 
@@ -57,10 +67,8 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    searchAirportViewModel: SearchAirportViewModel = viewModel(factory = SearchAirportViewModel.Factory),
+    flightSearchViewModel: FlightSearchViewModel = viewModel(factory = FlightSearchViewModel.Factory),
 ) {
-    val searchText by searchAirportViewModel.searchText.collectAsState()
-    val searchAutoCompletes by searchAirportViewModel.searchAutoCompletes.collectAsState()
     Scaffold(
         topBar = {
             TopAppBar(
@@ -71,16 +79,44 @@ fun HomeScreen(
         Column(
             modifier = Modifier.padding(innerPadding),
         ) {
+            val searchText by flightSearchViewModel.searchText.collectAsState()
+
             SearchBar(
                 searchText = searchText,
-                onSearchTextChange = searchAirportViewModel::onSearchTextChange,
+                onSearchTextChange = flightSearchViewModel::onSearchTextChange,
                 modifier = Modifier.fillMaxWidth()
             )
-            AnimatedVisibility(searchText.isNotEmpty()) {
-                SearchAutoCompletes(searchAutoCompletes = searchAutoCompletes)
+            if (searchText.isNotEmpty()) {
+                val departureAirportInfo by flightSearchViewModel.departureAirportInfo.collectAsState()
+                val searchResults by flightSearchViewModel.searchResults.collectAsState()
+
+                if (departureAirportInfo == null) {
+                    SearchAutoCompletion(
+                        airportInfoList = searchResults,
+                        onAirportInfoClick = flightSearchViewModel::onAirportInfoClick
+                    )
+                } else {
+                    val destinationAirportInfoList by flightSearchViewModel.destinationAirportInfoList.collectAsState()
+
+                    FlightList(
+                        title = "Flights from ${departureAirportInfo!!.iataCode}",
+                        airportInfoPairs = destinationAirportInfoList.map { destinationAirportInfo ->
+                            AirportInfoPair(departureAirportInfo!!, destinationAirportInfo)
+                        },
+                        isFavorite = false,
+                        onFavoriteRouteClick = flightSearchViewModel::onFavoriteRouteMarked
+                    )
+                }
+            } else {
+                val allFavoriteRoutes by flightSearchViewModel.allFavoriteRoutes.collectAsState()
+
+                FlightList(
+                    title = "Favorite Routes",
+                    airportInfoPairs = allFavoriteRoutes,
+                    isFavorite = true,
+                    onFavoriteRouteClick = flightSearchViewModel::onFavoriteRouteUnmarked
+                )
             }
-            SearchResults()
-            FavoriteFlights()
         }
     }
 }
@@ -157,26 +193,99 @@ fun SearchBar(
 }
 
 @Composable
-fun SearchAutoCompletes(searchAutoCompletes: List<AirportInfo>) {
+fun SearchAutoCompletion(
+    airportInfoList: List<AirportInfo>,
+    onAirportInfoClick: (AirportInfo) -> Unit,
+    modifier: Modifier = Modifier
+) {
     LazyColumn {
-        items(items = searchAutoCompletes) { searchAutoComplete ->
-            SearchAutoComplete(searchAutoComplete = searchAutoComplete)
+        items(items = airportInfoList) { searchResult ->
+            AirportInfoRow(
+                airportInfo = searchResult,
+                modifier = modifier
+                    .padding(start = 20.dp, top = 5.dp, end = 20.dp)
+                    .clickable(onClick = { onAirportInfoClick(searchResult) })
+            )
         }
     }
 }
 
 @Composable
-fun SearchAutoComplete(searchAutoComplete: AirportInfo) {
-    Text(text = "${searchAutoComplete.iataCode} ${searchAutoComplete.name}")
+fun AirportInfoRow(
+    airportInfo: AirportInfo,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Text(text = airportInfo.iataCode, fontSize = 13.sp, fontWeight = FontWeight(1000))
+        Text(text = airportInfo.name, fontSize = 13.sp)
+    }
 }
 
 @Composable
-fun SearchResults() {
-
+fun FlightList(
+    title: String,
+    airportInfoPairs: List<AirportInfoPair>,
+    isFavorite: Boolean,
+    onFavoriteRouteClick: (AirportInfoPair) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = Modifier.padding(10.dp)) {
+        Text(text = title, fontWeight = FontWeight(1000))
+        Spacer(modifier = Modifier.padding(10.dp))
+        LazyColumn(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            items(items = airportInfoPairs) { airportInfoPair ->
+                FlightRow(
+                    airportInfoPair = airportInfoPair,
+                    isFavorite = isFavorite,
+                    onFavoriteRouteClick = onFavoriteRouteClick,
+                    modifier = modifier
+                )
+            }
+        }
+    }
 }
 
 @Composable
-fun FavoriteFlights() {
+fun FlightRow(
+    airportInfoPair: AirportInfoPair,
+    isFavorite: Boolean,
+    onFavoriteRouteClick: (AirportInfoPair) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(10.dp)) {
+            Column {
+                Text(text = "DEPART", fontSize = 11.sp, modifier = modifier)
+                AirportInfoRow(
+                    airportInfo = airportInfoPair.departureAirport,
+                    modifier = modifier
+                )
+                Spacer(modifier.height(5.dp))
+                Text(text = "ARRIVE", fontSize = 11.sp, modifier = modifier)
+                AirportInfoRow(
+                    airportInfo = airportInfoPair.destinationAirport,
+                    modifier = modifier
+                )
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(onClick = {
+                onFavoriteRouteClick(airportInfoPair)
+            }) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Filled.Star else Icons.Default.Star,
+                    contentDescription = null,
+                    tint = Color.Gray,
+                    modifier = modifier.size(22.dp)
+                )
+            }
+        }
+    }
 }
 
 
