@@ -110,7 +110,7 @@ fun HomeScreen(
                         favoriteAirportRouteInfoList.map { favoriteAirportRouteInfo ->
                             favoriteAirportRouteInfo.destinationAirport.iataCode
                         }.toSet()
-                    FlightList(
+                    AirportRouteList(
                         title = "Flights from ${departureAirportInfo!!.iataCode}",
                         airportRouteInfoWithIsFavoriteList = destinationAirportInfoList.map { destinationAirportInfo ->
                             AirportRouteInfoWithIsFavorite(
@@ -127,7 +127,7 @@ fun HomeScreen(
                     )
                 }
             } else {
-                FlightList(
+                AirportRouteList(
                     title = "Favorite Routes",
                     airportRouteInfoWithIsFavoriteList = favoriteAirportRouteInfoList.map { favoriteAirportRouteInfo ->
                         AirportRouteInfoWithIsFavorite(
@@ -221,7 +221,7 @@ fun SearchAutoCompletion(
 ) {
     LazyColumn {
         items(items = airportInfoList) { searchResult ->
-            AirportInfoRow(
+            AirportInfoItem(
                 airportInfo = searchResult,
                 modifier = modifier
                     .padding(start = 20.dp, top = 5.dp, end = 20.dp)
@@ -232,7 +232,7 @@ fun SearchAutoCompletion(
 }
 
 @Composable
-fun AirportInfoRow(
+fun AirportInfoItem(
     airportInfo: AirportInfo,
     modifier: Modifier = Modifier
 ) {
@@ -246,7 +246,7 @@ fun AirportInfoRow(
 }
 
 @Composable
-fun FlightList(
+fun AirportRouteList(
     title: String,
     airportRouteInfoWithIsFavoriteList: List<AirportRouteInfoWithIsFavorite>,
     onAirportRouteInfoWithIsFavoriteClick: (AirportRouteInfoWithIsFavorite) -> Unit,
@@ -260,7 +260,7 @@ fun FlightList(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(items = airportRouteInfoWithIsFavoriteList) { airportRouteInfoWithIsFavorite ->
-                FlightRow(
+                AirportRouteItem(
                     airportRouteInfoWithIsFavorite = airportRouteInfoWithIsFavorite,
                     onAirportRouteInfoWithIsFavoriteClick = onAirportRouteInfoWithIsFavoriteClick,
                     modifier = modifier
@@ -271,7 +271,7 @@ fun FlightList(
 }
 
 @Composable
-fun FlightRow(
+fun AirportRouteItem(
     airportRouteInfoWithIsFavorite: AirportRouteInfoWithIsFavorite,
     onAirportRouteInfoWithIsFavoriteClick: (AirportRouteInfoWithIsFavorite) -> Unit,
     modifier: Modifier = Modifier,
@@ -280,13 +280,13 @@ fun FlightRow(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(10.dp)) {
             Column {
                 Text(text = "DEPART", fontSize = 11.sp, modifier = modifier)
-                AirportInfoRow(
+                AirportInfoItem(
                     airportInfo = airportRouteInfoWithIsFavorite.airportRouteInfo.departureAirport,
                     modifier = modifier
                 )
                 Spacer(modifier.height(5.dp))
                 Text(text = "ARRIVE", fontSize = 11.sp, modifier = modifier)
-                AirportInfoRow(
+                AirportInfoItem(
                     airportInfo = airportRouteInfoWithIsFavorite.airportRouteInfo.destinationAirport,
                     modifier = modifier
                 )
