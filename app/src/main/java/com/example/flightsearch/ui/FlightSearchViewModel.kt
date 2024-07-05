@@ -13,10 +13,7 @@ import com.example.flightsearch.model.AirportInfo
 import com.example.flightsearch.model.AirportRouteInfo
 import com.example.flightsearch.model.AirportRouteInfoWithIsFavorite
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 
@@ -25,15 +22,7 @@ class FlightSearchViewModel(
     private val flightSearchPreferencesRepository: FlightSearchPreferencesRepository
 ) : ViewModel() {
     private val _searchText = MutableStateFlow("")
-    val searchText =
-        flightSearchPreferencesRepository.searchText.combine(_searchText.asStateFlow()) { cachedSearchText, searchText ->
-            searchText.ifEmpty { cachedSearchText }
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = "",
-        )
-
+    val searchText = _searchText.asStateFlow()
 
     private val _searchResults = MutableStateFlow<List<AirportInfo>>(emptyList())
     val searchResults = _searchResults.asStateFlow()
@@ -49,7 +38,25 @@ class FlightSearchViewModel(
     val favoriteAirportRouteInfoList = _favoriteAirportRouteInfoList.asStateFlow()
 
     init {
+        preloadSearchTextFromPreference()
         listAllFavoriteAirportRoutes()
+    }
+
+    private fun preloadSearchTextFromPreference() {
+        viewModelScope.launch {
+            flightSearchPreferencesRepository.searchText.collect { searchText ->
+                onSearchTextChange(searchText)
+            }
+        }
+    }
+
+    private fun listAllFavoriteAirportRoutes() {
+        viewModelScope.launch {
+            inventoryDatabaseRepository.listAllFavoriteAirportRoutes()
+                .collect { favoriteAirportRouteInfoList ->
+                    _favoriteAirportRouteInfoList.value = favoriteAirportRouteInfoList
+                }
+        }
     }
 
     fun onSearchTextChange(searchText: String) {
@@ -75,15 +82,6 @@ class FlightSearchViewModel(
             inventoryDatabaseRepository.listAllAirports()
                 .collect { airportInfoList ->
                     _destinationAirportInfoList.value = airportInfoList
-                }
-        }
-    }
-
-    private fun listAllFavoriteAirportRoutes() {
-        viewModelScope.launch {
-            inventoryDatabaseRepository.listAllFavoriteAirportRoutes()
-                .collect { favoriteAirportRouteInfoList ->
-                    _favoriteAirportRouteInfoList.value = favoriteAirportRouteInfoList
                 }
         }
     }
