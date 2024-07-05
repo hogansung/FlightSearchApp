@@ -7,18 +7,33 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.flightsearch.FlightSearchApplication
-import com.example.flightsearch.data.InventoryRepository
+import com.example.flightsearch.data.FlightSearchPreferencesRepository
+import com.example.flightsearch.data.InventoryDatabaseRepository
 import com.example.flightsearch.model.AirportInfo
 import com.example.flightsearch.model.AirportRouteInfo
 import com.example.flightsearch.model.AirportRouteInfoWithIsFavorite
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 
-class FlightSearchViewModel(private val repository: InventoryRepository) : ViewModel() {
+class FlightSearchViewModel(
+    private val inventoryDatabaseRepository: InventoryDatabaseRepository,
+    private val flightSearchPreferencesRepository: FlightSearchPreferencesRepository
+) : ViewModel() {
     private val _searchText = MutableStateFlow("")
-    val searchText = _searchText.asStateFlow()
+    val searchText =
+        flightSearchPreferencesRepository.searchText.combine(_searchText.asStateFlow()) { cachedSearchText, searchText ->
+            searchText.ifEmpty { cachedSearchText }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = "",
+        )
+
 
     private val _searchResults = MutableStateFlow<List<AirportInfo>>(emptyList())
     val searchResults = _searchResults.asStateFlow()
@@ -33,13 +48,19 @@ class FlightSearchViewModel(private val repository: InventoryRepository) : ViewM
         MutableStateFlow<List<AirportRouteInfo>>(emptyList())
     val favoriteAirportRouteInfoList = _favoriteAirportRouteInfoList.asStateFlow()
 
+    init {
+        listAllFavoriteAirportRoutes()
+    }
+
     fun onSearchTextChange(searchText: String) {
         _searchText.value = searchText
 
         viewModelScope.launch {
-            repository.searchAirportWithSearchInput(searchText).collect { airflowInfoList ->
-                _searchResults.value = airflowInfoList
-            }
+            flightSearchPreferencesRepository.saveSearchTextPreference(searchText)
+            inventoryDatabaseRepository.searchAirportWithSearchInput(searchText)
+                .collect { airflowInfoList ->
+                    _searchResults.value = airflowInfoList
+                }
         }
 
         // When `searchText` is cleared, so is the `departureAirportInfo`
@@ -51,7 +72,7 @@ class FlightSearchViewModel(private val repository: InventoryRepository) : ViewM
     fun onAirportInfoClick(airportInfo: AirportInfo) {
         _departureAirportInfo.value = airportInfo
         viewModelScope.launch {
-            repository.listAllAirports()
+            inventoryDatabaseRepository.listAllAirports()
                 .collect { airportInfoList ->
                     _destinationAirportInfoList.value = airportInfoList
                 }
@@ -60,20 +81,21 @@ class FlightSearchViewModel(private val repository: InventoryRepository) : ViewM
 
     private fun listAllFavoriteAirportRoutes() {
         viewModelScope.launch {
-            repository.listAllFavoriteAirportRoutes().collect { favoriteAirportRouteInfoList ->
-                _favoriteAirportRouteInfoList.value = favoriteAirportRouteInfoList
-            }
+            inventoryDatabaseRepository.listAllFavoriteAirportRoutes()
+                .collect { favoriteAirportRouteInfoList ->
+                    _favoriteAirportRouteInfoList.value = favoriteAirportRouteInfoList
+                }
         }
     }
 
     fun onAirportRouteInfoWithIsFavoriteClick(airportRouteInfoWithIsFavorite: AirportRouteInfoWithIsFavorite) {
         if (airportRouteInfoWithIsFavorite.isFavorite) {
             viewModelScope.launch {
-                repository.deleteFavoriteRoute(airportRouteInfoWithIsFavorite = airportRouteInfoWithIsFavorite)
+                inventoryDatabaseRepository.deleteFavoriteRoute(airportRouteInfoWithIsFavorite = airportRouteInfoWithIsFavorite)
             }
         } else {
             viewModelScope.launch {
-                repository.insertFavoriteRoute(airportRouteInfoWithIsFavorite = airportRouteInfoWithIsFavorite)
+                inventoryDatabaseRepository.insertFavoriteRoute(airportRouteInfoWithIsFavorite = airportRouteInfoWithIsFavorite)
             }
         }
 
@@ -84,7 +106,8 @@ class FlightSearchViewModel(private val repository: InventoryRepository) : ViewM
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 FlightSearchViewModel(
-                    (this[APPLICATION_KEY] as FlightSearchApplication).inventoryRepository
+                    (this[APPLICATION_KEY] as FlightSearchApplication).inventoryDatabaseRepository,
+                    (this[APPLICATION_KEY] as FlightSearchApplication).flightSearchPreferencesRepository
                 )
             }
         }

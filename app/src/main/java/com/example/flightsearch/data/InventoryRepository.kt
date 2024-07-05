@@ -5,7 +5,7 @@ import com.example.flightsearch.model.AirportRouteInfo
 import com.example.flightsearch.model.AirportRouteInfoWithIsFavorite
 import kotlinx.coroutines.flow.Flow
 
-class InventoryRepository(
+class InventoryDatabaseRepository(
     private val airportDao: AirportDao,
     private val favoriteDao: FavoriteDao
 ) {

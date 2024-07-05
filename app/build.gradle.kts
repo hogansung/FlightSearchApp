@@ -67,6 +67,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)  // room
     implementation(libs.androidx.datastore.preferences)  // preferences
     implementation(libs.androidx.material.icons.extended)  // icons
+    implementation(libs.androidx.datastore.preferences)  // data store
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
