@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarOutline
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -47,7 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flightsearch.model.AirportInfo
-import com.example.flightsearch.model.AirportInfoPair
+import com.example.flightsearch.model.AirportRouteInfo
+import com.example.flightsearch.model.AirportRouteInfoWithIsFavorite
 import com.example.flightsearch.ui.FlightSearchViewModel
 import com.example.flightsearch.ui.theme.FlightSearchTheme
 import java.util.Locale
@@ -69,6 +71,12 @@ class MainActivity : ComponentActivity() {
 fun HomeScreen(
     flightSearchViewModel: FlightSearchViewModel = viewModel(factory = FlightSearchViewModel.Factory),
 ) {
+    val searchText: String by flightSearchViewModel.searchText.collectAsState()
+    val departureAirportInfo: AirportInfo? by flightSearchViewModel.departureAirportInfo.collectAsState()
+    val searchResults: List<AirportInfo> by flightSearchViewModel.searchResults.collectAsState()
+    val destinationAirportInfoList: List<AirportInfo> by flightSearchViewModel.destinationAirportInfoList.collectAsState()
+    val favoriteAirportRouteInfoList: List<AirportRouteInfo> by flightSearchViewModel.favoriteAirportRouteInfoList.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -79,42 +87,48 @@ fun HomeScreen(
         Column(
             modifier = Modifier.padding(innerPadding),
         ) {
-            val searchText by flightSearchViewModel.searchText.collectAsState()
-
             SearchBar(
                 searchText = searchText,
                 onSearchTextChange = flightSearchViewModel::onSearchTextChange,
                 modifier = Modifier.fillMaxWidth()
             )
             if (searchText.isNotEmpty()) {
-                val departureAirportInfo by flightSearchViewModel.departureAirportInfo.collectAsState()
-                val searchResults by flightSearchViewModel.searchResults.collectAsState()
-
                 if (departureAirportInfo == null) {
                     SearchAutoCompletion(
                         airportInfoList = searchResults,
                         onAirportInfoClick = flightSearchViewModel::onAirportInfoClick
                     )
                 } else {
-                    val destinationAirportInfoList by flightSearchViewModel.destinationAirportInfoList.collectAsState()
-
+                    val favoriteDestinationCodeSet =
+                        favoriteAirportRouteInfoList.map { favoriteAirportRouteInfo ->
+                            favoriteAirportRouteInfo.destinationAirport.iataCode
+                        }.toSet()
                     FlightList(
                         title = "Flights from ${departureAirportInfo!!.iataCode}",
-                        airportInfoPairs = destinationAirportInfoList.map { destinationAirportInfo ->
-                            AirportInfoPair(departureAirportInfo!!, destinationAirportInfo)
+                        airportRouteInfoWithIsFavoriteList = destinationAirportInfoList.map { destinationAirportInfo ->
+                            AirportRouteInfoWithIsFavorite(
+                                airportRouteInfo = AirportRouteInfo(
+                                    departureAirport = departureAirportInfo!!,
+                                    destinationAirport = destinationAirportInfo,
+                                ),
+                                isFavorite = favoriteDestinationCodeSet.contains(
+                                    destinationAirportInfo.iataCode
+                                )
+                            )
                         },
-                        isFavorite = false,
-                        onFavoriteRouteClick = flightSearchViewModel::onFavoriteRouteMarked
+                        onAirportRouteInfoWithIsFavoriteClick = flightSearchViewModel::onAirportRouteInfoWithIsFavoriteClick,
                     )
                 }
             } else {
-                val allFavoriteRoutes by flightSearchViewModel.allFavoriteRoutes.collectAsState()
-
                 FlightList(
                     title = "Favorite Routes",
-                    airportInfoPairs = allFavoriteRoutes,
-                    isFavorite = true,
-                    onFavoriteRouteClick = flightSearchViewModel::onFavoriteRouteUnmarked
+                    airportRouteInfoWithIsFavoriteList = favoriteAirportRouteInfoList.map { favoriteAirportRouteInfo ->
+                        AirportRouteInfoWithIsFavorite(
+                            airportRouteInfo = favoriteAirportRouteInfo,
+                            isFavorite = true
+                        )
+                    },
+                    onAirportRouteInfoWithIsFavoriteClick = flightSearchViewModel::onAirportRouteInfoWithIsFavoriteClick,
                 )
             }
         }
@@ -227,9 +241,8 @@ fun AirportInfoRow(
 @Composable
 fun FlightList(
     title: String,
-    airportInfoPairs: List<AirportInfoPair>,
-    isFavorite: Boolean,
-    onFavoriteRouteClick: (AirportInfoPair) -> Unit,
+    airportRouteInfoWithIsFavoriteList: List<AirportRouteInfoWithIsFavorite>,
+    onAirportRouteInfoWithIsFavoriteClick: (AirportRouteInfoWithIsFavorite) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = Modifier.padding(10.dp)) {
@@ -239,11 +252,10 @@ fun FlightList(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            items(items = airportInfoPairs) { airportInfoPair ->
+            items(items = airportRouteInfoWithIsFavoriteList) { airportRouteInfoWithIsFavorite ->
                 FlightRow(
-                    airportInfoPair = airportInfoPair,
-                    isFavorite = isFavorite,
-                    onFavoriteRouteClick = onFavoriteRouteClick,
+                    airportRouteInfoWithIsFavorite = airportRouteInfoWithIsFavorite,
+                    onAirportRouteInfoWithIsFavoriteClick = onAirportRouteInfoWithIsFavoriteClick,
                     modifier = modifier
                 )
             }
@@ -253,9 +265,8 @@ fun FlightList(
 
 @Composable
 fun FlightRow(
-    airportInfoPair: AirportInfoPair,
-    isFavorite: Boolean,
-    onFavoriteRouteClick: (AirportInfoPair) -> Unit,
+    airportRouteInfoWithIsFavorite: AirportRouteInfoWithIsFavorite,
+    onAirportRouteInfoWithIsFavoriteClick: (AirportRouteInfoWithIsFavorite) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card {
@@ -263,22 +274,24 @@ fun FlightRow(
             Column {
                 Text(text = "DEPART", fontSize = 11.sp, modifier = modifier)
                 AirportInfoRow(
-                    airportInfo = airportInfoPair.departureAirport,
+                    airportInfo = airportRouteInfoWithIsFavorite.airportRouteInfo.departureAirport,
                     modifier = modifier
                 )
                 Spacer(modifier.height(5.dp))
                 Text(text = "ARRIVE", fontSize = 11.sp, modifier = modifier)
                 AirportInfoRow(
-                    airportInfo = airportInfoPair.destinationAirport,
+                    airportInfo = airportRouteInfoWithIsFavorite.airportRouteInfo.destinationAirport,
                     modifier = modifier
                 )
             }
             Spacer(modifier = Modifier.weight(1f))
             IconButton(onClick = {
-                onFavoriteRouteClick(airportInfoPair)
+                onAirportRouteInfoWithIsFavoriteClick(
+                    airportRouteInfoWithIsFavorite
+                )
             }) {
                 Icon(
-                    imageVector = if (isFavorite) Icons.Filled.Star else Icons.Default.Star,
+                    imageVector = if (airportRouteInfoWithIsFavorite.isFavorite) Icons.Default.Star else Icons.Default.StarOutline,
                     contentDescription = null,
                     tint = Color.Gray,
                     modifier = modifier.size(22.dp)

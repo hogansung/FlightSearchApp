@@ -1,7 +1,8 @@
 package com.example.flightsearch.data
 
 import com.example.flightsearch.model.AirportInfo
-import com.example.flightsearch.model.AirportInfoPair
+import com.example.flightsearch.model.AirportRouteInfo
+import com.example.flightsearch.model.AirportRouteInfoWithIsFavorite
 import kotlinx.coroutines.flow.Flow
 
 class InventoryRepository(
@@ -16,23 +17,23 @@ class InventoryRepository(
         return airportDao.searchAirportWithSearchInput("")
     }
 
-    fun listAllFavoriteRoutes(): Flow<List<AirportInfoPair>> {
-        return favoriteDao.listAllFavoriteRoutes()
+    fun listAllFavoriteAirportRoutes(): Flow<List<AirportRouteInfo>> {
+        return favoriteDao.listAllFavoriteAirportRoutes()
     }
 
-    suspend fun insertFavoriteRoute(airportInfoPair: AirportInfoPair) {
-        favoriteDao.insertFavoriteRoute(
+    suspend fun insertFavoriteRoute(airportRouteInfoWithIsFavorite: AirportRouteInfoWithIsFavorite) {
+        favoriteDao.insertFavoriteAirportRoute(
             Favorite(
-                departureCode = airportInfoPair.departureAirport.iataCode,
-                destinationCode = airportInfoPair.destinationAirport.iataCode
+                departureCode = airportRouteInfoWithIsFavorite.airportRouteInfo.departureAirport.iataCode,
+                destinationCode = airportRouteInfoWithIsFavorite.airportRouteInfo.destinationAirport.iataCode
             )
         )
     }
 
-    suspend fun deleteFavoriteRoute(airportInfoPair: AirportInfoPair) {
-        favoriteDao.deleteFavoriteRoute(
-            departureCode = airportInfoPair.departureAirport.iataCode,
-            destinationCode = airportInfoPair.destinationAirport.iataCode
+    suspend fun deleteFavoriteRoute(airportRouteInfoWithIsFavorite: AirportRouteInfoWithIsFavorite) {
+        favoriteDao.deleteFavoriteAirportRoute(
+            departureCode = airportRouteInfoWithIsFavorite.airportRouteInfo.departureAirport.iataCode,
+            destinationCode = airportRouteInfoWithIsFavorite.airportRouteInfo.destinationAirport.iataCode
         )
     }
 }

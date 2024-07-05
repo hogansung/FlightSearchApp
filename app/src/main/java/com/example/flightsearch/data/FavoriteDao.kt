@@ -3,7 +3,7 @@ package com.example.flightsearch.data
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
-import com.example.flightsearch.model.AirportInfoPair
+import com.example.flightsearch.model.AirportRouteInfo
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -23,11 +23,11 @@ interface FavoriteDao {
             airport AS destination_airport ON destination_airport.iata_code = favorite.destination_code
     """
     )
-    fun listAllFavoriteRoutes(): Flow<List<AirportInfoPair>>
+    fun listAllFavoriteAirportRoutes(): Flow<List<AirportRouteInfo>>
 
     @Insert
-    suspend fun insertFavoriteRoute(favorite: Favorite)
+    suspend fun insertFavoriteAirportRoute(favorite: Favorite)
 
     @Query("DELETE FROM favorite WHERE departure_code = :departureCode AND destination_code = :destinationCode")
-    suspend fun deleteFavoriteRoute(departureCode: String, destinationCode: String)
+    suspend fun deleteFavoriteAirportRoute(departureCode: String, destinationCode: String)
 }

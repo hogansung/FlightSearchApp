@@ -9,7 +9,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.flightsearch.FlightSearchApplication
 import com.example.flightsearch.data.InventoryRepository
 import com.example.flightsearch.model.AirportInfo
-import com.example.flightsearch.model.AirportInfoPair
+import com.example.flightsearch.model.AirportRouteInfo
+import com.example.flightsearch.model.AirportRouteInfoWithIsFavorite
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -28,8 +29,9 @@ class FlightSearchViewModel(private val repository: InventoryRepository) : ViewM
     private val _destinationAirportInfoList = MutableStateFlow<List<AirportInfo>>(emptyList())
     val destinationAirportInfoList = _destinationAirportInfoList.asStateFlow()
 
-    private val _allFavoriteRoutes = MutableStateFlow<List<AirportInfoPair>>(emptyList())
-    val allFavoriteRoutes = _allFavoriteRoutes.asStateFlow()
+    private val _favoriteAirportRouteInfoList =
+        MutableStateFlow<List<AirportRouteInfo>>(emptyList())
+    val favoriteAirportRouteInfoList = _favoriteAirportRouteInfoList.asStateFlow()
 
     fun onSearchTextChange(searchText: String) {
         _searchText.value = searchText
@@ -56,29 +58,26 @@ class FlightSearchViewModel(private val repository: InventoryRepository) : ViewM
         }
     }
 
-    fun listAllFavoriteRoutes() {
+    private fun listAllFavoriteAirportRoutes() {
         viewModelScope.launch {
-            repository.listAllFavoriteRoutes().collect { allFavoriteRoutes ->
-                _allFavoriteRoutes.value = allFavoriteRoutes
+            repository.listAllFavoriteAirportRoutes().collect { favoriteAirportRouteInfoList ->
+                _favoriteAirportRouteInfoList.value = favoriteAirportRouteInfoList
             }
         }
     }
 
-    fun onFavoriteRouteMarked(airportInfoPair: AirportInfoPair) {
-        viewModelScope.launch {
-            repository.insertFavoriteRoute(airportInfoPair = airportInfoPair)
+    fun onAirportRouteInfoWithIsFavoriteClick(airportRouteInfoWithIsFavorite: AirportRouteInfoWithIsFavorite) {
+        if (airportRouteInfoWithIsFavorite.isFavorite) {
+            viewModelScope.launch {
+                repository.deleteFavoriteRoute(airportRouteInfoWithIsFavorite = airportRouteInfoWithIsFavorite)
+            }
+        } else {
+            viewModelScope.launch {
+                repository.insertFavoriteRoute(airportRouteInfoWithIsFavorite = airportRouteInfoWithIsFavorite)
+            }
         }
 
-        listAllFavoriteRoutes()
-    }
-
-    fun onFavoriteRouteUnmarked(airportInfoPair: AirportInfoPair) {
-        viewModelScope.launch {
-            repository.deleteFavoriteRoute(airportInfoPair = airportInfoPair)
-        }
-
-        // Update the removed favorite routes
-        listAllFavoriteRoutes()
+        listAllFavoriteAirportRoutes()
     }
 
     companion object {
